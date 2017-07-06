@@ -1,0 +1,34 @@
+{
+  "name": "deconstruct-api",
+  "version": "0.0.1",
+  "description": "A desconstructed, extendable API framework, requiring the minimum of work to get things done",
+  "main": "deconstruct.js",
+  "scripts": {
+    "test": "node test/testDeconstruct.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/adriaan-pelzer/deconstruct-api.git"
+  },
+  "keywords": [
+    "deconstruct",
+    "api",
+    "framework",
+    "rest-api",
+    "rest",
+    "routes"
+  ],
+  "author": "Adriaan Pelzer",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/adriaan-pelzer/deconstruct-api/issues"
+  },
+  "homepage": "https://github.com/adriaan-pelzer/deconstruct-api#readme",
+  "dependencies": {
+    "body-parser": "^1.17.2",
+    "express": "^4.15.3",
+    "fs": "0.0.1-security",
+    "highland": "^2.11.0",
+    "ramda": "^0.24.1"
+  }
+}

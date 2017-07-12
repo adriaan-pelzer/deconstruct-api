@@ -77,10 +77,10 @@ module.exports = {
                             index: memo.index + 1,
                             found: memo.found
                         };
-                    }, { index: 0, found: false }, R.last ( route.split ( '/' ) ).split ( '~' ) );
+                    }, { index: 0, found: false }, R.tail ( R.last ( route.split ( '/' ) ).split ( '~' ) ) );
                 };
 
-                return getFirstDynamicComponent ( b ) - getFirstDynamicComponent ( a );
+                return getFirstDynamicComponent ( b ).index - getFirstDynamicComponent ( a ).index;
             } ) )
             .sequence ()
             .filter ( route => R.reduce ( ( accept, re ) => {

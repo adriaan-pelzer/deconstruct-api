@@ -59,6 +59,29 @@ app.use ( ( req, res, next ) => {
 module.exports = {
     loadRoutes: ( routeDir, callback ) => {
         return dirStream ( routeDir )
+            .map ( R.sort ( ( a, b ) => {
+                const getFirstDynamicComponent = route => {
+                    return R.reduce ( ( memo, component ) => {
+                        if ( memo.found ) {
+                            return memo;
+                        }
+
+                        if ( component.match ( ':' ) ) {
+                            return {
+                                index: memo.index,
+                                found: true
+                            }
+                        }
+
+                        return {
+                            index: memo.index + 1,
+                            found: memo.found
+                        };
+                    }, { index: 0, found: false }, R.last ( route.split ( '/' ) ).split ( '~' ) );
+                };
+
+                return getFirstDynamicComponent ( b ) - getFirstDynamicComponent ( a );
+            } ) )
             .sequence ()
             .filter ( route => R.reduce ( ( accept, re ) => {
                 return accept && R.last ( route.split ( '/' ) ).match ( re );
@@ -86,4 +109,3 @@ module.exports = {
         return app;
     }
 };
-

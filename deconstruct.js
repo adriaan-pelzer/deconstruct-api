@@ -3,10 +3,8 @@ const R = require ( 'ramda' );
 const express = require ( 'express' ), app = express ();
 const bodyParser = require ( 'body-parser' );
 const fs = require ( 'fs' ), dirStream = H.wrapCallback ( R.bind ( fs.readdir, fs ) );
-const itemStore = require ( '../../lib/itemStore.js' );
 
 const utils = {
-    getClients: itemStore.getClients,
     log: R.compose ( console.log, R.partialRight ( JSON.stringify, [ null, 4 ] ) ),
     streamRoute: H.wrapCallback ( ( routeName, utils, req, res, callback ) => {
         return require ( `./routes/${routeName}` )( R.assocPath ( [ 'callback' ], ( res, error, result ) => {

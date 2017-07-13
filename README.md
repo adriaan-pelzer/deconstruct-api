@@ -113,6 +113,10 @@ A utility to allow other routes to be re-used. It returns the result of route as
   } );
 ```
 
+### addUtil
+
+The addUtil method can be used to add your own, custom utilities to the _utils_ object that gets passed as the first argument to every handler. Only add utilities here that are completely ubiquitous (ie gets used by the majority of your handlers), or it will become bloated quite quickly.
+
 ### example
 
 ```js
@@ -124,6 +128,12 @@ A utility to allow other routes to be re-used. It returns the result of route as
    
    const deconstruct = require ( 'deconstruct-api' );
    
+   const myUtil = someString => {
+       return `transformed ${someString}`;
+   };
+
+   deconstruct.addUtil ( 'myUtil', myUtil ); // available as utils.myUtil ()
+
    if ( cluster.isMaster ) {
        console.log ( `MASTER: starting ${numCPUs} processes` );
        R.range ( 0, numCPUs ).forEach ( i => {

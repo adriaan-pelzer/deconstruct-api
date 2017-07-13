@@ -9,7 +9,7 @@ In your project folder:
 ```
 
 In your start script:
-```
+```js
   const dapi = require ( 'deconstruct-api' );
   
   dapi.loadRoutes ( path.resolve ( './my-routes' ), error => {
@@ -35,7 +35,7 @@ GET /path/to/{some}/resource/{id} => ~path~to~:some~resource~:id~get.js
 
 All handler modules should be curried (a good library to use is [ramda.curry](http://ramdajs.com/docs/#curry)), and should accept three parameters:
 
-```
+```js
   const R = require ( 'ramda' );
   
   module.exports = R.curry ( ( utils, req, res ) => {} );
@@ -59,7 +59,7 @@ Returns results & errors to the user by simply calling them back. This utility i
 
 (See _error_ utility for HTTP status codes)
 
-```
+```js
   const R = require ( 'ramda' );
   
   module.exports = R.curry ( ( utils, req, res ) => {
@@ -83,7 +83,7 @@ Returns errors to the user by simply calling them back. This utility is called w
 If the error is an object, and has a numerical _code_ attribute, the value of code is returned as the HTTP status code of the response.
 Otherwise, a status code of 500 will be returned.
 
-```
+```js
   const R = require ( 'ramda' );
   
   module.exports = R.curry ( ( utils, req, res ) => {
@@ -104,7 +104,7 @@ Otherwise, a status code of 500 will be returned.
 
 A utility to allow other routes to be re-used. It returns the result of route as a [highland](http://highlandjs.org/) stream. As first parameter, it expects the name of the route you whish to reuse, and the remaining three parameters are _utils_, _req_, and _res_:
 
-```
+```js
   const R = require ( 'ramda' );
   
   module.exports = R.curry ( ( utils, req, res ) => {
@@ -115,7 +115,7 @@ A utility to allow other routes to be re-used. It returns the result of route as
 
 ### example
 
-```
+```js
    const H = require ( 'highland' );
    const R = require ( 'ramda' );
    const path = require ( 'path' );

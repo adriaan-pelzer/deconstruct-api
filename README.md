@@ -33,7 +33,7 @@ GET /path/to/{some}/resource/{id} => ~path~to~:some~resource~:id~get.js
 
 #### handler modules
 
-All handler modules should be curried (a good library to use is (ramda.curry)[http://ramdajs.com/docs/#curry]), and should accept three parameters:
+All handler modules should be curried (a good library to use is [ramda.curry](http://ramdajs.com/docs/#curry)), and should accept three parameters:
 
 ```
   const R = require ( 'ramda' );
@@ -102,7 +102,7 @@ Otherwise, a status code of 500 will be returned.
 
 ###### streamRoute
 
-A utility to allow other routes to be re-used. It returns the result of route as a (highland)[http://highlandjs.org/] stream. As first parameter, it expects the name of the route you whish to reuse, and the remaining three parameters are _utils_, _req_, and _res_:
+A utility to allow other routes to be re-used. It returns the result of route as a [highland](http://highlandjs.org/) stream. As first parameter, it expects the name of the route you whish to reuse, and the remaining three parameters are _utils_, _req_, and _res_:
 
 ```
   const R = require ( 'ramda' );
@@ -111,4 +111,33 @@ A utility to allow other routes to be re-used. It returns the result of route as
     utils.streamRoute ( '~some~:other~route~get.js', utils, req, res )
       .toCallback ( utils.callback ( res ) );
   } );
+```
+
+### example
+
+```
+   const H = require ( 'highland' );
+   const R = require ( 'ramda' );
+   const path = require ( 'path' );
+   const cluster = require ( 'cluster' );
+   const numCPUs = require ( 'os' ).cpus ().length;
+   
+   const deconstruct = require ( 'deconstruct-api' );
+   
+   return H.wrapCallback ( deconstruct.loadRoutes )( path.resolve ( './routes' ) )
+      .errors ( error => {
+          console.error ( error );
+      } )
+      .each ( routes => {
+          if ( cluster.isMaster ) {
+              console.log ( `MASTER: starting ${numCPUs} processes` );
+              R.range ( 0, numCPUs ).forEach ( i => {
+                  console.log ( `MASTER: starting worker #${i}` );
+                  cluster.fork ();
+              } );
+          } else {
+              console.log ( 'WORKER: started' );
+              deconstruct.start ( process.env.PORT || 8080 );
+          }
+      } );
 ```

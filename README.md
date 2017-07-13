@@ -124,20 +124,20 @@ A utility to allow other routes to be re-used. It returns the result of route as
    
    const deconstruct = require ( 'deconstruct-api' );
    
-   return H.wrapCallback ( deconstruct.loadRoutes )( path.resolve ( './routes' ) )
-      .errors ( error => {
-          console.error ( error );
-      } )
-      .each ( routes => {
-          if ( cluster.isMaster ) {
-              console.log ( `MASTER: starting ${numCPUs} processes` );
-              R.range ( 0, numCPUs ).forEach ( i => {
-                  console.log ( `MASTER: starting worker #${i}` );
-                  cluster.fork ();
-              } );
-          } else {
-              console.log ( 'WORKER: started' );
-              deconstruct.start ( process.env.PORT || 8080 );
-          }
-      } );
+   if ( cluster.isMaster ) {
+       console.log ( `MASTER: starting ${numCPUs} processes` );
+       R.range ( 0, numCPUs ).forEach ( i => {
+           console.log ( `MASTER: starting worker #${i}` );
+           cluster.fork ();
+       } );
+   } else {
+       return H.wrapCallback ( deconstruct.loadRoutes )( path.resolve ( './routes' ) )
+           .errors ( error => {
+               console.error ( error );
+           } )
+           .each ( routes => {
+               console.log ( 'WORKER: started' );
+               deconstruct.start ( process.env.PORT || 8080 );
+           } );
+   }
 ```

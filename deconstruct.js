@@ -57,6 +57,9 @@ app.use ( ( req, res, next ) => {
 } );
 
 module.exports = {
+    addutil: ( name, util ) => {
+        utils[name] = util;
+    },
     loadRoutes: ( routeDir, callback ) => {
         return dirStream ( routeDir )
             .map ( R.sort ( ( a, b ) => {

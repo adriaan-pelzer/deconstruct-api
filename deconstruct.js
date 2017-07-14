@@ -3,11 +3,16 @@ const R = require ( 'ramda' );
 const express = require ( 'express' ), app = express ();
 const bodyParser = require ( 'body-parser' );
 const fs = require ( 'fs' ), dirStream = H.wrapCallback ( R.bind ( fs.readdir, fs ) );
+const path = require ( 'path' );
+
+const routeDir = {
+    path: null
+};
 
 const utils = {
     log: R.compose ( console.log, R.partialRight ( JSON.stringify, [ null, 4 ] ) ),
     streamRoute: H.wrapCallback ( ( routeName, utils, req, res, callback ) => {
-        return require ( `./routes/${routeName}` )( R.assocPath ( [ 'callback' ], ( res, error, result ) => {
+        return require ( `${routeDir.path}/${routeName}` )( R.assocPath ( [ 'callback' ], ( res, error, result ) => {
             if ( error === undefined && result === undefined ) {
                 return callback;
             }
@@ -61,6 +66,8 @@ module.exports = {
         utils[name] = util;
     },
     loadRoutes: ( routeDir, callback ) => {
+        routeDir.path = path.resolve ( routeDir );
+
         return dirStream ( routeDir )
             .map ( R.sort ( ( a, b ) => {
                 const getFirstDynamicComponent = route => {

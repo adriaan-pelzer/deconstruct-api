@@ -53,11 +53,11 @@ app.use ( ( req, res, next ) => {
     res.header ( 'Access-Control-Allow-Origin', '*' );
     res.header ( 'Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE, OPTIONS' );
     res.header ( 'Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept' );
-    next();
+    next ();
 } );
 
 module.exports = {
-    addutil: ( name, util ) => {
+    addUtil: ( name, util ) => {
         utils[name] = util;
     },
     loadRoutes: ( routeDir, callback ) => {

@@ -4,12 +4,16 @@ const express = require ( 'express' ), app = express ();
 const bodyParser = require ( 'body-parser' );
 const fs = require ( 'fs' ), dirStream = H.wrapCallback ( R.bind ( fs.readdir, fs ) );
 const path = require ( 'path' );
+const crypto = require ( 'crypto' );
 
 const rDir = {
     path: null
 };
 
 const utils = {
+    md5: string => {
+        return crypto.createHash ( 'md5' ).update ( string ).digest ( 'hex' );
+    },
     log: R.compose ( console.log, R.partialRight ( JSON.stringify, [ null, 4 ] ) ),
     streamRoute: H.wrapCallback ( ( routeName, utils, req, res, callback ) => {
         return require ( `${rDir.path}/${routeName}` )( R.assocPath ( [ 'callback' ], ( res, error, result ) => {
@@ -104,9 +108,42 @@ module.exports = {
                 const pathSpec = R.init ( routeComponents ).join ( '/' );
                 const method = R.last ( routeComponents );
 
-                console.log ( `registering ${pathSpec} ${method}` );
 
-                app[method] ( pathSpec, require ( `${routeDir}/${route}` )( utils ) );
+                ( ( pathSpec, route, method ) => {
+                    const routeHandler = require ( `${routeDir}/${route}` )( utils );
+
+                    if ( method.toLowerCase () === 'get' ) {
+                        console.log ( `registering ${pathSpec} HEAD` );
+
+                        app.head ( pathSpec, ( req, res ) => {
+                            return utils.streamRoute ( route, utils, req, res )
+                                .toCallback ( ( error, response ) => {
+                                    if ( error ) {
+                                        return utils.error ( res, error );
+                                    }
+
+                                    return res.set ( 'X-Content-MD5', utils.md5 ( JSON.stringify ( response ) ) ).send ( '' );
+                                } );
+                        } );
+
+                        console.log ( `registering ${pathSpec} GET` );
+
+                        return app.get ( pathSpec, ( req, res ) => {
+                            return utils.streamRoute ( route, utils, req, res )
+                                .toCallback ( ( error, response ) => {
+                                    if ( error ) {
+                                        return utils.error ( res, error );
+                                    }
+
+                                    return res.set ( 'X-Content-MD5', utils.md5 ( JSON.stringify ( response ) ) ).json ( response );
+                                } );
+                        } );
+                    }
+
+                    console.log ( `registering ${pathSpec} ${method.toUpperCase ()}` );
+
+                    return app[method] ( pathSpec, routeHandler );
+                } )( pathSpec, route, method );
             } )
             .collect ()
             .toCallback ( callback );

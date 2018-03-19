@@ -6,6 +6,7 @@ const fs = require ( 'fs' ), dirStream = H.wrapCallback ( R.bind ( fs.readdir, f
 const path = require ( 'path' );
 const crypto = require ( 'crypto' );
 const jwt = require ( 'jsonwebtoken' );
+const uuid = require ( 'uuid' );
 
 const rDir = {
     path: null
@@ -35,6 +36,7 @@ const utils = {
             secrets[issuerIid] = secret;
         },
         getIssuerSecret: issuerIid => secrets[issuerIid] || null,
+        generateSecret: uuid.v4,
         generateKey: ( { issuerIid, expireInDays = 1, audience = 'users', payload }, callback ) => {
             const secret = getIssuerSecret ( issuerIid );
 

@@ -37,7 +37,7 @@ const utils = {
         },
         getIssuerSecret: issuerName => secrets[issuerName] || null,
         generateSecret: uuid.v4,
-        generateKeyWithSecret: ( { secret, expireInDays = 1, audience = 'users', payload }, callback ) => {
+        generateKeyWithSecret: ( { secret, expiresInDays = 1, audience = 'users', payload }, callback ) => {
             return H.wrapCallback ( R.bind ( jwt.sign, jwt ) )( payload, secret, {
                 ...utils.auth.options,
                 expiresIn: expiresInDays * 24 * 60 * 60 * 1000,
@@ -46,14 +46,14 @@ const utils = {
             } )
                 .toCallback ( callback );
         },
-        generateKey: ( { expireInDays = 1, audience = 'users', payload }, callback ) => {
+        generateKey: ( { expiresInDays = 1, audience = 'users', payload }, callback ) => {
             const secret = getIssuerSecret ( payload.name );
 
             if ( ! secret ) {
                 return callback ( `No secret defined for issuer '${payload.name}'` );
             }
 
-            return utils.auth.generateKeyWithSecret ( { secret, expireInDays, audience, payload }, callback );
+            return utils.auth.generateKeyWithSecret ( { secret, expiresInDays, audience, payload }, callback );
         },
         verifyKey: ( { issuerIid, options, key }, callback ) => {
             return jwt.verify ( key, secret, {

@@ -1,6 +1,6 @@
 {
   "name": "deconstruct-api",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A desconstructed, extendable API framework, requiring the minimum of work to get things done",
   "main": "deconstruct.js",
   "scripts": {

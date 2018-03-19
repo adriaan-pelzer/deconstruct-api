@@ -10,6 +10,8 @@ const rDir = {
     path: null
 };
 
+const secrets = {};
+
 const utils = {
     md5: string => {
         return crypto.createHash ( 'md5' ).update ( string ).digest ( 'hex' );
@@ -24,6 +26,36 @@ const utils = {
             return callback ( error, result );
         }, utils ), req, res );
     } ),
+    auth: {
+        options: {
+            algorithm: 'HS256'
+        },
+        setIssuerSecret: ( issuerIid, secret ) => {
+            secrets[issuerIid] = secret;
+        },
+        getIssuerSecret: issuerIid => secrets[issuerIid] || null,
+        generateKey: ( { issuerIid, expireInDays = 1, audience = 'users', payload }, callback ) => {
+            const secret = getIssuerSecret ( issuerIid );
+
+            if ( ! secret ) {
+                return callback ( `No secret defined for issuer with iid ${issuerIid}` );
+            }
+
+            return H.wrapCallback ( R.bind ( jwt.sign, jwt ) )( payload, secret, {
+                ...utils.auth.options,
+                expiresIn: 30 * 24 * 60 * 60 * 1000,
+                issuer: issuerIid,
+                audience
+            } )
+                .toCallback ( callback );
+        },
+        verifyKey: ( { issuerIid, options, key }, callback ) => {
+            return jwt.verify ( key, secret, {
+                ...utils.auth.options,
+                ...R.pick ( [ 'audience', 'issuer', 'ignoreExpiration' ], options )
+            }, callback );
+        }
+    },
     error: ( res, error ) => {
         const localCallback = error => {
             return res.status ( error.code && parseInt ( error.code, 10 ) >= 200 ? parseInt ( error.code, 10 ) : 500 ).json ( error );

@@ -7,12 +7,11 @@ const path = require ( 'path' );
 const crypto = require ( 'crypto' );
 const jwt = require ( 'jsonwebtoken' );
 const uuid = require ( 'uuid' );
+const itemStore = require ( 'deconstruct-item-store' ).itemStore;
 
 const rDir = {
     path: null
 };
-
-const secrets = {};
 
 const utils = {
     sha256: string => {
@@ -35,28 +34,20 @@ const utils = {
         options: {
             algorithm: 'HS256'
         },
-        setIssuerSecret: ( issuerName, secret ) => {
-            return secrets[issuerName] = secret;
-        },
-        getIssuerSecret: issuerName => secrets[issuerName] || null,
         generateSecret: uuid.v4,
-        generateKeyWithSecret: ( { secret, expiresInDays = 1, audience = 'users', payload }, callback ) => {
+        generateKeyWithSecret: ( { secret, expiresInDays = 1, audience = 'users', payload, issuer }, callback ) => {
             return H.wrapCallback ( R.bind ( jwt.sign, jwt ) )( payload, secret, {
                 ...utils.auth.options,
                 expiresIn: expiresInDays * 24 * 60 * 60 * 1000,
-                issuer: payload.name,
+                issuer,
                 audience
             } )
                 .toCallback ( callback );
         },
-        generateKey: ( { expiresInDays = 1, audience = 'users', payload }, callback ) => {
-            const secret = getIssuerSecret ( payload.name );
-
-            if ( ! secret ) {
-                return callback ( `No secret defined for issuer '${payload.name}'` );
-            }
-
-            return utils.auth.generateKeyWithSecret ( { secret, expiresInDays, audience, payload }, callback );
+        generateKey: ( { expiresInDays = 1, audience = 'users', payload, issuer }, callback ) => {
+            return H.wrapCallback ( utils.auth.getIssuerSecret )( issuer )
+                .flatMap ( secret => H.wrapCallback ( utils.auth.generateKeyWithSecret )( { secret, expiresInDays, audience, payload, issuer } ) )
+                .toCallback ( callback );
         },
         getKey: ( { Authorization, authorization } ) => {
             const authHeader = Authorization || authorization;
@@ -69,43 +60,45 @@ const utils = {
 
             return { authType, key, timestamp };
         },
-        verifyKey: ( { issuerName, options, authParms }, callback ) => {
-            const secret = utils.auth.getIssuerSecret ( issuerName );
+        verifyKey: ( { options, authParms }, callback ) => {
+            return H.wrapCallback ( utils.auth.getIssuerSecret )( options.issuer )
+                .flatMap ( H.wrapCallback ( ( secret, callback ) => {
+                    if ( ! authParms || ! authParms.key || ! authParms.authType ) {
+                        return callback ( { code: 401, message: `No authParms sent` } );
+                    }
 
-            console.log ( { issuerName, options, authParms } );
-            if ( ! secret ) {
-                return callback ( `No secret defined for issuer '${issuerName}'` );
-            }
+                    if ( authParms.authType === 'Sig' ) {
+                        if ( ! authParms.timestamp ) {
+                            return callback ( { code: 401, message: `No timestamp` } );
+                        }
 
-            if ( ! authParms || ! authParms.key || ! authParms.authType ) {
-                return callback ( `No authParms sent` );
-            }
+                        if ( authParms.timestamp < ( new Date ().valueOf () - 60000 ) ) {
+                            return callback ( { code: 401, message: `Timestamp has expired` } );
+                        }
 
-            if ( authParms.authType === 'Sig' ) {
-                if ( ! authParms.timestamp ) {
-                    return callback ( `No timestamp` );
-                }
+                        if ( utils.sha256 ( authParms.timestamp.toString () ) !== authParms.key ) {
+                            return callback ( { code: 401, message: `Signature verification failed` } );
+                        }
 
-                if ( authParms.timestamp < ( new Date ().valueOf () - 60000 ) ) {
-                    return callback ( `Timestamp has expired` );
-                }
+                        return callback ( null, { name: options.issuer } );
+                    }
 
-                if ( utils.sha256 ( authParms.timestamp.toString () ) !== authParms.key ) {
-                    return callback ( `Signature verification failed` );
-                }
+                    if ( authParms.authType !== 'Bearer' ) {
+                        return callback ( { code: 401, message: `Auth type ${authParms.authType} not supported` } );
+                    }
 
-                return callback ( null, { name: issuerName } );
-            }
+                    return jwt.verify ( authParms.key, secret, {
+                        ...utils.auth.options,
+                        ...R.pick ( [ 'issuer', 'audience', 'ignoreExpiration' ], options )
+                    }, ( error, payload ) => {
+                        if ( error ) {
+                            return callback ( { code: 401, message: error.message || 'Not authorized' } );
+                        }
 
-            if ( authParms.authType !== 'Bearer' ) {
-                return callback ( `Auth type ${authParms.authType} not supported` );
-            }
-
-            return jwt.verify ( authParms.key, secret, {
-                ...utils.auth.options,
-                issuer: issuerName,
-                ...R.pick ( [ 'audience', 'ignoreExpiration' ], options )
-            }, callback );
+                        return callback ( null, payload );
+                    } );
+                } ) )
+                .toCallback ( callback );
         }
     },
     error: ( res, error ) => {
@@ -150,7 +143,8 @@ app.use ( ( req, res, next ) => {
 } );
 
 module.exports = {
-    setIssuerSecret: utils.auth.setIssuerSecret,
+    setSecretRetriever: secretRetriever => utils.auth.getIssuerSecret = secretRetriever,
+    setSecretDeleter: secretDeleter => utils.auth.deleteIssuerSecret = secretDeleter,
     addUtil: ( name, util ) => { utils[name] = util; },
     loadRoutes: ( routeDir, callback ) => {
         rDir.path = path.resolve ( routeDir );

@@ -5,6 +5,7 @@ const bodyParser = require ( 'body-parser' );
 const fs = require ( 'fs' ), dirStream = H.wrapCallback ( R.bind ( fs.readdir, fs ) );
 const path = require ( 'path' );
 const crypto = require ( 'crypto' );
+const jwt = require ( 'jsonwebtoken' );
 
 const rDir = {
     path: null

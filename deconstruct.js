@@ -32,25 +32,28 @@ const utils = {
         options: {
             algorithm: 'HS256'
         },
-        setIssuerSecret: ( issuerIid, secret ) => {
-            secrets[issuerIid] = secret;
+        setIssuerSecret: ( issuerName, secret ) => {
+            secrets[issuerName] = secret;
         },
-        getIssuerSecret: issuerIid => secrets[issuerIid] || null,
+        getIssuerSecret: issuerName => secrets[issuerName] || null,
         generateSecret: uuid.v4,
-        generateKey: ( { issuerIid, expireInDays = 1, audience = 'users', payload }, callback ) => {
-            const secret = getIssuerSecret ( issuerIid );
-
-            if ( ! secret ) {
-                return callback ( `No secret defined for issuer with iid ${issuerIid}` );
-            }
-
+        generateKeyWithSecret: ( { secret, expireInDays = 1, audience = 'users', payload }, callback ) => {
             return H.wrapCallback ( R.bind ( jwt.sign, jwt ) )( payload, secret, {
                 ...utils.auth.options,
-                expiresIn: 30 * 24 * 60 * 60 * 1000,
-                issuer: issuerIid,
+                expiresIn: expiresInDays * 24 * 60 * 60 * 1000,
+                issuer: payload.name,
                 audience
             } )
                 .toCallback ( callback );
+        },
+        generateKey: ( { expireInDays = 1, audience = 'users', payload }, callback ) => {
+            const secret = getIssuerSecret ( payload.name );
+
+            if ( ! secret ) {
+                return callback ( `No secret defined for issuer '${payload.name}'` );
+            }
+
+            return utils.auth.generateKeyWithSecret ( { secret, expireInDays, audience, payload }, callback );
         },
         verifyKey: ( { issuerIid, options, key }, callback ) => {
             return jwt.verify ( key, secret, {

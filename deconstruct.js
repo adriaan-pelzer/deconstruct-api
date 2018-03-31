@@ -7,7 +7,6 @@ const path = require ( 'path' );
 const crypto = require ( 'crypto' );
 const jwt = require ( 'jsonwebtoken' );
 const uuid = require ( 'uuid' );
-const itemStore = require ( 'deconstruct-item-store' ).itemStore;
 
 const rDir = {
     path: null

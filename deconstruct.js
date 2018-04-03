@@ -21,6 +21,10 @@ const utils = {
     },
     log: R.compose ( console.log, R.partialRight ( JSON.stringify, [ null, 4 ] ) ),
     streamRoute: H.wrapCallback ( ( routeName, utils, req, res, callback ) => {
+        if ( R.type ( res ) === 'Function' && typeof callback === 'undefined' ) {
+            return res ( { code: 500, message: `res is undefined in streamRoute call on route ${routeName}` } );
+        }
+
         return require ( `${rDir.path}/${routeName}` )( R.assocPath ( [ 'callback' ], ( res, error, result ) => {
             if ( error === undefined && result === undefined ) {
                 return callback;

@@ -185,7 +185,7 @@ app.use ( bodyParser.json ( { limit: '50mb' } ) );
 app.use ( ( req, res, next ) => {
     res.header ( 'Access-Control-Allow-Origin', '*' );
     res.header ( 'Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE, OPTIONS, HEAD' );
-    res.header ( 'Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, X-Content-MD5' );
+    res.header ( 'Access-Control-Allow-Headers', 'Authorization, Origin, X-Requested-With, Content-Type, Accept, X-Content-MD5' );
     next ();
 } );
 
@@ -226,13 +226,42 @@ module.exports = {
                 /^~/,
                 /\.js$/
             ] ) )
+            .collect ()
+            .map ( routes => R.reduce ( ( reduced, route ) => {
+                const method = R.last ( route.split ( '~' ) ).replace ( '.js', '' );
+                const corrRoute = postfix => R.compose ( R.join ( '~' ), R.flip ( R.concat )( [ postfix ] ), R.init, R.split ( '~' ) );
+                const corrOptionsRoute = corrRoute ( 'options.js' );
+                const corrPreFlightRoute = corrRoute ( 'preflight' );
+                const preFlightRoute = R.find ( rRoute => rRoute.indexOf ( corrPreFlightRoute ( route ) ) === 0, reduced );
+
+                if ( R.contains ( corrOptionsRoute ( route ), routes ) ) {
+                    return R.concat ( reduced, [ route ] );
+                }
+
+                if ( preFlightRoute ) {
+                    return R.concat ( R.reject ( route => route === preFlightRoute, reduced ), [ route, `${preFlightRoute}-${method}` ] );
+                }
+
+                return R.concat ( reduced, [ route, `${corrPreFlightRoute ( route )}-${method}` ] );
+            }, [], routes ) )
+            .sequence ()
             .doto ( route => {
                 const routeComponents = route.replace ( /\.js$/, '' ).split ( '~' );
                 const pathSpec = R.init ( routeComponents ).join ( '/' );
                 const method = R.last ( routeComponents );
 
-
                 ( ( pathSpec, route, method ) => {
+                    if ( method.match ( 'preflight' ) ) {
+                        const methods = R.concat ( R.tail ( method.split ( '-' ) ), method.match ( 'get' ) ? [ 'head' ] : [] );
+                        const methodHeader = R.map ( method => method.toUpperCase (), methods ).join ( ', ' );
+
+                        console.log ( `registering ${pathSpec} OPTIONS (preflight ${methodHeader})` );
+
+                        return app.options ( pathSpec, ( req, res ) => {
+                            return res.set ( 'Access-Control-Allow-Methods', methodHeader ).send ( '' );
+                        } );
+                    }
+
                     const routeHandler = require ( `${routeDir}/${route}` )( utils );
 
                     if ( method.toLowerCase () === 'get' ) {

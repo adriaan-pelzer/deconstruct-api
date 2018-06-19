@@ -287,7 +287,9 @@ module.exports = {
                                         return utils.error ( res, error );
                                     }
 
-                                    return res.set ( 'X-Content-MD5', utils.md5 ( JSON.stringify ( response ) ) ).json ( response );
+                                    res.set ( 'X-Content-MD5', utils.md5 ( JSON.stringify ( response ) ) );
+
+                                    return utils.callback ( res, error, response );
                                 } );
                         } );
                     }

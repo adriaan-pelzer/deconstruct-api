@@ -8,6 +8,8 @@ const crypto = require ( 'crypto' );
 const jwt = require ( 'jsonwebtoken' );
 const uuid = require ( 'uuid' );
 
+const log = require ( 'lib/log.js' );
+
 const rDir = {
     path: null
 };
@@ -262,6 +264,7 @@ module.exports = {
                         console.log ( `registering ${pathSpec} OPTIONS (preflight ${methodHeader})` );
 
                         return app.options ( pathSpec, ( req, res ) => {
+                            log ( 1, `OPTIONS ${pathSpec}` );
                             return res.set ( 'Access-Control-Allow-Methods', methodHeader ).send ( '' );
                         } );
                     }
@@ -272,6 +275,7 @@ module.exports = {
                         console.log ( `registering ${pathSpec} HEAD` );
 
                         app.head ( pathSpec, ( req, res ) => {
+                            log ( 1, `HEAD ${pathSpec}` );
                             return utils.streamRoute ( route, utils, req, res )
                                 .toCallback ( ( error, response ) => {
                                     if ( error ) {
@@ -285,6 +289,7 @@ module.exports = {
                         console.log ( `registering ${pathSpec} GET` );
 
                         return app.get ( pathSpec, ( req, res ) => {
+                            log ( 1, `GET ${pathSpec}` );
                             return utils.streamRoute ( route, utils, req, res )
                                 .toCallback ( ( error, response ) => {
                                     if ( error ) {
@@ -300,7 +305,10 @@ module.exports = {
 
                     console.log ( `registering ${pathSpec} ${method.toUpperCase ()}` );
 
-                    return app[method] ( pathSpec, routeHandler );
+                    return app[method] ( pathSpec, ( req, res ) => {
+                        log ( 1, `${method.toUpperCase()} ${pathSpec}` );
+                        return routeHandler ( req, res );
+                    } );
                 } )( pathSpec, route, method );
             } )
             .collect ()

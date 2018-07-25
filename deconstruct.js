@@ -8,7 +8,7 @@ const crypto = require ( 'crypto' );
 const jwt = require ( 'jsonwebtoken' );
 const uuid = require ( 'uuid' );
 
-const log = require ( 'lib/log.js' );
+const log = require ( './lib/log.js' );
 
 const rDir = {
     path: null

@@ -27,7 +27,7 @@ In your start script:
 
 The route folder is expected to contain routes handlers, the names of which are directly derived from the path it should serve, as follows:
 
-GET /path/to/{some}/resource/{id} => ~path~to~:some~resource~:id~get.js
+`GET /path/to/{some}/resource/{id}` => `~path~to~:some~resource~:id~get.js`
 
 (where _some_ and _id_ are path parameters)
 
@@ -150,4 +150,27 @@ The addUtil method can be used to add your own, custom utilities to the _utils_ 
                deconstruct.start ( process.env.PORT || 8080 );
            } );
    }
+```
+
+### Windows support
+
+In Windows the `:` character is not a valid character in file names, so alternatively the route files can use a different character (or string) e.g:
+
+`~path~to~__some~resource~__id~get.js`
+
+and then use `loadRoutes` like this:
+
+```js
+  const dapi = require ( 'deconstruct-api' );
+  
+  dapi.loadRoutes ( {
+    routeDir: path.resolve ( './my-routes' ), 
+    pathParameterFlag: '__'
+  }, error => {
+    if ( error ) {
+      return console.error ( error );
+    }
+    
+    dapi.start ( process.env.PORT );
+  } );
 ```

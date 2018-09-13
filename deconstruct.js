@@ -199,16 +199,8 @@ module.exports = {
     setSecretRetriever: secretRetriever => utils.auth.getIssuerSecret = secretRetriever,
     addUtil: ( name, util ) => { utils[name] = util; },
     loadRoutes: ( options, callback ) => {
-        const routeDir = options;
-        const pathParameterFlag = ':';
-
-        if (typeof options === 'object') {
-            routeDir = options.routeDir;
-            
-            if (typeof options.pathParameterFlag === 'string') {
-                pathParameterFlag = options.pathParameterFlag;
-            }
-        }
+        const routeDir = typeof options === 'object' ? options.routeDir : options;
+        const pathParameterFlag = typeof options === 'object' && options.pathParameterFlag ? options.pathParameterFlag : ':';
 
         rDir.path = path.resolve ( routeDir );
 
@@ -262,12 +254,13 @@ module.exports = {
                 return R.concat ( reduced, [ route, `${corrPreFlightRoute ( route )}-${method}` ] );
             }, [], routes ) )
             .sequence ()
-            .doto ( route => {
-                const routeComponents = route.replace ( /\.js$/, '' ).split ( '~' );
+            .doto ( routeFileName => {
+                const routeComponents = routeFileName.replace ( /\.js$/, '' ).split ( '~' )
+                    .map( component => component.replace(pathParameterFlag, ':') );
                 const pathSpec = R.init ( routeComponents ).join ( '/' );
                 const method = R.last ( routeComponents );
 
-                ( ( pathSpec, route, method ) => {
+                ( ( pathSpec, routeFileName, method ) => {
                     if ( method.match ( 'preflight' ) ) {
                         const methods = R.concat ( R.tail ( method.split ( '-' ) ), method.match ( 'get' ) ? [ 'head' ] : [] );
                         const methodHeader = R.map ( method => method.toUpperCase (), methods ).join ( ', ' );
@@ -280,14 +273,14 @@ module.exports = {
                         } );
                     }
 
-                    const routeHandler = require ( `${routeDir}/${route}` )( utils );
+                    const routeHandler = require ( `${routeDir}/${routeFileName}` )( utils );
 
                     if ( method.toLowerCase () === 'get' ) {
                         console.log ( `registering ${pathSpec} HEAD` );
 
                         app.head ( pathSpec, ( req, res ) => {
                             log ( 1, `HEAD ${pathSpec}` );
-                            return utils.streamRoute ( route, utils, req, res )
+                            return utils.streamRoute ( routeFileName, utils, req, res )
                                 .toCallback ( ( error, response ) => {
                                     if ( error ) {
                                         return utils.error ( res, error );
@@ -301,7 +294,7 @@ module.exports = {
 
                         return app.get ( pathSpec, ( req, res ) => {
                             log ( 1, `GET ${pathSpec}` );
-                            return utils.streamRoute ( route, utils, req, res )
+                            return utils.streamRoute ( routeFileName, utils, req, res )
                                 .toCallback ( ( error, response ) => {
                                     if ( error ) {
                                         return utils.error ( res, error );
@@ -320,7 +313,7 @@ module.exports = {
                         log ( 1, `${method.toUpperCase()} ${pathSpec}` );
                         return routeHandler ( req, res );
                     } );
-                } )( pathSpec, route, method );
+                } )( pathSpec, routeFileName, method );
             } )
             .collect ()
             .toCallback ( callback );

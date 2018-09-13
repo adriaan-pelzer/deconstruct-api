@@ -198,7 +198,18 @@ app.use ( ( req, res, next ) => {
 module.exports = {
     setSecretRetriever: secretRetriever => utils.auth.getIssuerSecret = secretRetriever,
     addUtil: ( name, util ) => { utils[name] = util; },
-    loadRoutes: ( routeDir, callback ) => {
+    loadRoutes: ( options, callback ) => {
+        const routeDir = options;
+        const pathParameterFlag = ':';
+
+        if (typeof options === 'object') {
+            routeDir = options.routeDir;
+            
+            if (typeof options.pathParameterFlag === 'string') {
+                pathParameterFlag = options.pathParameterFlag;
+            }
+        }
+
         rDir.path = path.resolve ( routeDir );
 
         return dirStream ( routeDir )
@@ -209,7 +220,7 @@ module.exports = {
                             return memo;
                         }
 
-                        if ( component.match ( ':' ) ) {
+                        if ( component.match ( pathParameterFlag ) ) {
                             return {
                                 index: memo.index,
                                 found: true

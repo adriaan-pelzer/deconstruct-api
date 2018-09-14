@@ -199,7 +199,7 @@ module.exports = {
     setSecretRetriever: secretRetriever => utils.auth.getIssuerSecret = secretRetriever,
     addUtil: ( name, util ) => { utils[name] = util; },
     loadRoutes: ( options, callback ) => {
-        const routeDir = typeof options === 'object' ? (options.routeDir || './routes') : (options || './routes');
+        const routeDir = (typeof options === 'object' ? options.routeDir : options) || './routes';
         const pathParameterFlag = typeof options === 'object' && options.pathParameterFlag ? options.pathParameterFlag : ':';
 
         rDir.path = path.resolve ( routeDir );
